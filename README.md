@@ -1,173 +1,127 @@
-<div align="center">
-  <a name="readme-top"></a>
-  <h1><a href="https://www.billionmail.com/" target="_blank">BillionMail 📧</a></h1>
+# BillionMail Patched
 
+A community-maintained fork of [aaPanel/BillionMail](https://github.com/aaPanel/BillionMail) with targeted fixes for DNS verification and refresh when using dedicated outbound IP addresses.
 
-## An Open-Source MailServer, NewsLetter, Email Marketing Solution for Smarter Campaigns
+BillionMail is an open-source mail server and email marketing platform. This fork focuses on improving dedicated-IP DNS record verification without replacing the original BillionMail architecture.
 
-[![][license-shield]][license-link] [![][docs-shield]][docs-link] [![][github-release-shield]][github-release-link] [![][github-stars-shield]][github-stars-link]
+## Major Changes
 
-English | [简体中文](README-zh_CN.md) | [日本語](README-ja.md) | [Türkçe](README-ja.md)
-</div>
-<br/>
+### 1. Dedicated-IP SPF/TXT Verification
 
-<div align="center">
-<a href="https://trendshift.io/repositories/13842" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13842" alt="aaPanel%2FBillionMail | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</div>
+- Verify the domain's SPF TXT record using the configured dedicated outbound IP.
+- Avoid reusing a shared-IP SPF cache result for dedicated-IP domains.
+- Perform verification in the correct dedicated-IP context.
 
-## What is BillionMail?
+### 2. Dedicated-IP A Record Refresh
 
-BillionMail is a **future open-source Mail server, Email marketing platform** designed to help businesses and individuals manage their email campaigns with ease. Whether you're sending newsletters, promotional emails, or transactional messages, this tool will provide **full control** over your email marketing efforts. With features like **advanced analytics**, and **customer management**, you'll be able to create, send, and track emails like a pro.
+- Bypass the cached A-record result when a dedicated IP is configured.
+- Perform immediate A-record validation against the configured dedicated IP during refresh.
 
-![BillionMail Banner](https://www.billionmail.com/home.png?v1)
+### 3. Dedicated-IP PTR Verification and Refresh
 
-# Just 3 steps to send a billion emails!
-**Billion emails. Any business. Guaranteed.**
+- Use the domain's active dedicated outbound IP for PTR verification.
+- Resolve the active outbound IP during PTR refresh.
+- Avoid using a cached PTR result for dedicated-IP verification.
+- Fall back to the default server IP when no dedicated IP is provided.
 
-### Step 1️⃣ Install BillionMail: 
-✅ It takes **only 8️⃣ minutes** from installation to **✅ successful email sending**
-```shell
-cd /opt && git clone https://github.com/aaPanel/BillionMail && cd BillionMail && bash install.sh
+These changes target DNS verification and cache-refresh behavior. They do not guarantee successful email delivery: correct DNS configuration, reverse DNS/PTR setup, SPF, DKIM, DMARC, IP reputation, and provider policies still matter.
+
+## Installation
+
+**Recommended: install this fork on a fresh server or test environment first.**
+
+### Requirements
+
+- A supported Linux server for BillionMail.
+- Git and Docker, with the Docker Compose plugin if using the Docker installation method.
+- A domain you control and the required DNS records.
+- Appropriate server and DNS configuration for outbound mail.
+
+Check the upstream documentation for current system requirements and installation prerequisites.
+
+### Method 1: Standard installation
+
+Clone the patched branch:
+
+```bash
+cd /opt
+git clone -b dedicated-ip-dns-fixes https://github.com/rohitkkrana/BillionMail-patched.git
+cd BillionMail-patched
+bash install.sh
 ```
 
+### Method 2: Docker Compose
 
-### Step 2️⃣: Connect Your Domain
-- Add the sending domain
-- Verify DNS records
-- Auto-enable free SSL
-
-
-### Step 3️⃣: Build Your Campaign
-
-- Write or paste your email
-- Choose list & tags
-- Set send time or send now
-
-
-<div align="center">
-  <a href="https://www.youtube.com/embed/UHgxZa_9jGs?si=0-f1B5hDtcWImvQv" target="_blank">
-    <img src="https://img.youtube.com/vi/UHgxZa_9jGs/maxresdefault.jpg" alt="" width="80%">
-    <br />
-    <img src="https://www.iconfinder.com/icons/317714/download/png/16" alt="YouTube" width="16"/>
-    <b>Watch on Youtube</b>
-  </a>
-</div>
-
-
-## Other installation methods
-
-### One-click installation on aaPanel
-👉 https://www.aapanel.com/new/download.html  (Log in to ✅aaPanel --> 🐳Docker --> 1️⃣OneClick install)
-
-
-
-
-**Docker**
-```shell
-cd /opt && git clone https://github.com/aaPanel/BillionMail && cd BillionMail && cp env_init .env && docker compose up -d || docker-compose up -d
+```bash
+cd /opt
+git clone -b dedicated-ip-dns-fixes https://github.com/rohitkkrana/BillionMail-patched.git
+cd BillionMail-patched
+cp env_init .env
 ```
 
-## Management script
-- Management help
+Review and configure `.env` according to your environment, then run:
 
-  `bm help`
-
-- View Login default info
-
-  `bm default`
-
-- Show domain DNS record
-
-  `bm show-record`
-
-- Update BillionMail
-
-  `bm update`
-
-## Live Demo
-BillionMail Demo: [https://demo.billionmail.com/billionmail](https://demo.billionmail.com/billionmail)
-
-Username: `billionmail` 
-
-Password: `billionmail` 
-
-
-## WebMail
-
-BillionMail has integrated **RoundCube**, you can access WebMail via `/roundcube/`.
-
-## Why BillionMail?
-
-Most email marketing platforms are either **expensive**, **closed-source**, or **lack essential features**. BillionMail aims to be different:
-
-✅ **Fully Open-Source** – No hidden costs, no vendor lock-in.  
-📊 **Advanced Analytics** – Track email delivery, open rates, click-through rates, and more.  
-📧 **Unlimited Sending** – No restrictions on the number of emails you can send.  
-🎨 **Customizable Templates** – Custom professional marketing templates for reuse.
-🔒 **Privacy-First** – Your data stays with you, no third-party tracking.  
-🚀 **Self-Hosted** – Run it on your own server for complete control.  
-
-## How You Can Help 🌟
-
-BillionMail is a **community-driven project**, and we need your support to get started! Here's how you can help:
-
-1. **Star This Repository**: Show your interest by starring this repo.  
-2. **Spread the Word**: Share BillionMail with your network—developers, marketers, and open-source enthusiasts.  
-3. **Share Feedback**: Let us know what features you'd like to see in BillionMail by opening an issue or joining the discussion.  
-4. **Contribute**: Once development begins, we'll welcome contributions from the community. Stay tuned for updates!
-
----
-
-📧 **BillionMail – The Future of Open-Source Email Marketing.**
-
-## Issues
-
-If you encounter any issues or have feature requests, please [open an issue](https://github.com/aaPanel/BillionMail/issues). Be sure to include:
-
-- A clear description of the problem or request.
-- Steps to reproduce the issue (if applicable).
-- Screenshots or error logs (if applicable).
-
-## Install Now:
-✅It takes **only 8 minutes** from installation to **successful email sending**
-```shell
-cd /opt && git clone https://github.com/aaPanel/BillionMail && cd BillionMail && bash install.sh
+```bash
+docker compose up -d
 ```
 
+Follow the upstream documentation for any additional setup required by your server.
 
-**Install with Docker:** (Please install Docker and docker-compose-plugin manually, and modify .env file)
-```shell
-cd /opt && git clone https://github.com/aaPanel/BillionMail && cd BillionMail && cp env_init .env && docker compose up -d || docker-compose up -d
+**Important:** Do not run a fresh installation over an existing production deployment without a tested backup and upgrade plan.
+
+## Testing
+
+The dedicated-IP DNS service tests can be run from the `core` directory with Go installed:
+
+```bash
+cd core
+go test ./internal/service/domains
 ```
 
-## Star History
+Alternatively, use a Go-enabled Docker image:
 
-[![Star History Chart](https://api.star-history.com/svg?repos=aapanel/billionmail&type=Date)](https://www.star-history.com/#aapanel/billionmail&Date)
+```bash
+docker run --rm \
+  -v "$PWD/core:/src" \
+  -w /src \
+  golang:1.24 \
+  go test ./internal/service/domains
+```
 
-## License
+This command tests the DNS service package. It does not, by itself, prove that every DNS provider or production mail-delivery scenario works correctly.
 
-BillionMail is licensed under the **AGPLv3 License**. This means you can:
+## Management
 
-✅ Use the software for free.  
-✅ Modify and distribute the code.  
-✅ Use it privately without restrictions.
+After installation, the available management commands may include:
 
-See the [LICENSE](LICENSE) file for more details.
+```bash
+bm help
+bm default
+bm show-record
+bm update
+```
 
----
+Use `bm help` and the upstream documentation to confirm the commands supported by your installed version.
 
-<!-- BillionMail official link -->
-[docs-link]: https://www.billionmail.com/
+## Upstream Project and Documentation
 
-<!-- BillionMail Other link-->
-[license-link]: https://www.gnu.org/licenses/agpl-3.0.html
-[github-release-link]: https://github.com/aaPanel/BillionMail/releases/latest
-[github-stars-link]: https://github.com/aaPanel/BillionMail
-[github-issues-link]: https://github.com/aaPanel/BillionMail/issues
+- **Original project:** https://github.com/aaPanel/BillionMail
+- **Upstream documentation:** https://www.billionmail.com/
+- **Upstream issues:** https://github.com/aaPanel/BillionMail/issues
+- **License:** See the repository's `LICENSE` file.
 
-<!-- Shield link-->
-[docs-shield]: https://img.shields.io/badge/documentation-148F76
-[github-release-shield]: https://img.shields.io/github/v/release/aaPanel/BillionMail
-[github-stars-shield]: https://img.shields.io/github/stars/aaPanel/BillionMail?color=%231890FF&style=flat-square   
-[license-shield]: https://img.shields.io/github/license/aaPanel/BillionMail
+## Contributing
 
+Bug reports, reproducible test cases, and improvements are welcome. Please describe the affected DNS record, whether a dedicated outbound IP is configured, and the steps required to reproduce the issue. Remove private IP details, credentials, tokens, and other sensitive server information from logs before sharing them.
+
+## Security
+
+- Never commit `.env` files, credentials, private keys, mailbox data, production backups, or server-specific secrets.
+- Test changes before deploying them to a production mail server.
+- Review upstream changes before merging or updating this fork.
+
+## License and Attribution
+
+BillionMail is distributed under the license specified in the upstream repository. Retain the upstream license and copyright notices when redistributing this fork, and review the repository's `LICENSE` file for applicable obligations.
+
+This fork contains custom DNS verification and refresh fixes maintained separately from the upstream project.
