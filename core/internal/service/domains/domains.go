@@ -496,10 +496,19 @@ func FreshRecords(ctx context.Context, domain ...string) {
 			}
 		}(d)
 
-		//retrieve PTR record
+		// Retrieve PTR using the domain's active dedicated outbound IP, if configured.
 		go func(d string) {
 			defer wg.Done()
-			dr, err := GetPTRRecord(d, true)
+
+			dedicatedIP := ""
+			val, _ := g.DB().Model("bm_multi_ip_domain").
+				Where("domain = ? AND active = 1", d).
+				Value("outbound_ip")
+			if val != nil {
+				dedicatedIP = strings.TrimSpace(val.String())
+			}
+
+			dr, err := GetPTRRecord(d, true, dedicatedIP)
 			if err != nil {
 				g.Log().Error(ctx, "Failed to get PTR record for domain %s: %v", d, err)
 			} else {
@@ -713,12 +722,18 @@ func GetDMARCRecord(domain string, validateImmediate bool) (record v1.DNSRecord,
 }
 
 // GetSPFRecord retrieves the SPF record for a given domain.
-func GetSPFRecord(domain string, validateImmediate bool) (record v1.DNSRecord, err error) {
-	serverIP, err := public.GetServerIP()
+func GetSPFRecord(domain string, validateImmediate bool, dedicatedIPs ...string) (record v1.DNSRecord, err error) {
+	serverIP := ""
+	if len(dedicatedIPs) > 0 {
+		serverIP = strings.TrimSpace(dedicatedIPs[0])
+	}
 
-	if err != nil {
-		err = fmt.Errorf("Failed to get server IP: %v", err)
-		return
+	if serverIP == "" {
+		serverIP, err = public.GetServerIP()
+		if err != nil {
+			err = fmt.Errorf("Failed to get server IP: %v", err)
+			return
+		}
 	}
 
 	ipType := "ip4"
@@ -791,12 +806,18 @@ func GetARecord(domain string, validateImmediate bool, dedicatedIP string) (reco
 }
 
 // GetPTRRecord retrieves the PTR record for a given domain.
-func GetPTRRecord(domain string, validateImmediate bool) (record v1.DNSRecord, err error) {
-	serverIP, err := public.GetServerIP()
+func GetPTRRecord(domain string, validateImmediate bool, dedicatedIPs ...string) (record v1.DNSRecord, err error) {
+	serverIP := ""
+	if len(dedicatedIPs) > 0 {
+		serverIP = strings.TrimSpace(dedicatedIPs[0])
+	}
 
-	if err != nil {
-		err = fmt.Errorf("Failed to get server IP: %v", err)
-		return
+	if serverIP == "" {
+		serverIP, err = public.GetServerIP()
+		if err != nil {
+			err = fmt.Errorf("Failed to get server IP: %v", err)
+			return
+		}
 	}
 
 	record = v1.DNSRecord{
@@ -806,7 +827,6 @@ func GetPTRRecord(domain string, validateImmediate bool) (record v1.DNSRecord, e
 	}
 
 	if validateImmediate {
-		// Validate the PTR record
 		record.Valid = ValidatePTRRecord(record)
 	}
 
@@ -818,7 +838,7 @@ func GetPTRRecord(domain string, validateImmediate bool) (record v1.DNSRecord, e
 func GetRecordsInCache(domain string, dedicatedIP string) (records v1.DNSRecords) {
 	// Get A record — bypass cache when a dedicated IP is set
 	if dedicatedIP != "" {
-		records.A, _ = GetARecord(domain, false, dedicatedIP)
+		records.A, _ = GetARecord(domain, true, dedicatedIP)
 	} else {
 		aRecord := public.GetCache(buildCacheKey(domain, "A"))
 		if aRecord != nil {
@@ -841,15 +861,19 @@ func GetRecordsInCache(domain string, dedicatedIP string) (records v1.DNSRecords
 		records.MX, _ = GetMXRecord(domain, false)
 	}
 
-	// Get SPF record from cache
-	spfRecord := public.GetCache(buildCacheKey(domain, "SPF"))
-
-	if spfRecord != nil {
-		if v, ok := spfRecord.(v1.DNSRecord); ok {
-			records.SPF = v
-		}
+	// Dedicated-IP domains must use their own IP, not a shared cached SPF record.
+	if strings.TrimSpace(dedicatedIP) != "" {
+		records.SPF, _ = GetSPFRecord(domain, true, dedicatedIP)
 	} else {
-		records.SPF, _ = GetSPFRecord(domain, false)
+		// Get SPF record from cache for domains using the default server IP.
+		spfRecord := public.GetCache(buildCacheKey(domain, "SPF"))
+		if spfRecord != nil {
+			if v, ok := spfRecord.(v1.DNSRecord); ok {
+				records.SPF = v
+			}
+		} else {
+			records.SPF, _ = GetSPFRecord(domain, false)
+		}
 	}
 
 	// Get DKIM record from cache
@@ -884,17 +908,21 @@ func GetRecordsInCache(domain string, dedicatedIP string) (records v1.DNSRecords
 		records.DMARC, _ = GetDMARCRecord(domain, false)
 	}
 
-	// Get PTR record from cache
-	ptrRecord := public.GetCache(buildCacheKey(domain, "PTR"))
-
-	if ptrRecord != nil {
-		if v, ok := ptrRecord.(v1.DNSRecord); ok {
-			records.PTR = v
-		}
+	// Dedicated-IP domains must query and validate PTR against their outbound IP.
+	if strings.TrimSpace(dedicatedIP) != "" {
+		records.PTR, _ = GetPTRRecord(domain, true, dedicatedIP)
 	} else {
-		records.PTR, _ = GetPTRRecord(domain, false)
-	}
+		// Use cached PTR for domains using the default server IP.
+		ptrRecord := public.GetCache(buildCacheKey(domain, "PTR"))
 
+		if ptrRecord != nil {
+			if v, ok := ptrRecord.(v1.DNSRecord); ok {
+				records.PTR = v
+			}
+		} else {
+			records.PTR, _ = GetPTRRecord(domain, false)
+		}
+	}
 	return
 }
 
